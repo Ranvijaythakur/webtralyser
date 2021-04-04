@@ -1,0 +1,119 @@
+using System;
+using System.Configuration;
+using System.Data;
+using System.Linq;
+using System.Web;
+using System.Web.Security;
+using System.Web.UI;
+using System.Web.UI.HtmlControls;
+using System.Web.UI.WebControls;
+using System.Web.UI.WebControls.WebParts;
+using System.Xml.Linq;
+using System.Web.Configuration;
+using System.Data.SqlClient;
+using System.Net;
+public partial class _Default : System.Web.UI.Page 
+{
+    SqlConnection con;
+    SqlCommand cmd;
+    string query,date,time;
+    int h,count;
+    int bandwidth, finalbandwidth;
+
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        date = System.DateTime.Today.ToShortDateString();
+        time = System.DateTime.Now.ToShortTimeString();
+
+        //bandwidth code
+
+        data();
+        query = "select bwidth from bandw";
+        cmd = new SqlCommand(query, con);
+        SqlDataReader rd = cmd.ExecuteReader();
+        if (rd.Read())
+        {
+            bandwidth = Convert.ToInt32(rd[0].ToString());
+        }
+        rd.Close();
+        con.Close();
+        if (bandwidth == 0)
+        {
+            Response.Redirect("errpage.aspx");
+        }
+        else
+        {
+            finalbandwidth = bandwidth - 3;
+
+            if (finalbandwidth < 0)
+            {
+                finalbandwidth = 0;
+            }
+
+            data();
+            query = "update bandw set bwidth=" + finalbandwidth + "";
+            cmd = new SqlCommand(query, con);
+            cmd.ExecuteNonQuery();
+            con.Close();
+
+
+
+
+
+            data();
+            query = "select home from pageanalyse";
+            cmd = new SqlCommand(query, con);
+            h = Convert.ToInt32(cmd.ExecuteScalar().ToString());
+            h = h + 1;
+            query = "update pageanalyse set home=" + h + "";
+            cmd = new SqlCommand(query, con);
+            cmd.ExecuteNonQuery();
+            con.Close();
+
+            string ip;
+            ip = GetIP();
+            data();
+            query = "select coun from ipadd where ipaddress='" + ip.ToString() + "' and page='Home' and cdate='" + date.ToString() + "'";
+            cmd = new SqlCommand(query, con);
+            SqlDataReader red = cmd.ExecuteReader();
+            if (red.Read())
+            {
+                count = Convert.ToInt32(red[0].ToString());
+                count = count + 1;
+                data();
+                query = "update ipadd set coun =" + count + ",cdate='" + date.ToString() + "',ctime='" + time.ToString() + "' where ipaddress='" + ip.ToString() + "' and page='Home' and cdate='" + date.ToString() + "'";
+                cmd = new SqlCommand(query, con);
+                cmd.ExecuteNonQuery();
+                con.Close();
+            }
+            else
+            {
+                data();
+                query = "insert into ipadd(ipaddress,coun,page,cdate,ctime)values('" + ip.ToString() + "',1,'Home','" + date.ToString() + "','" + time.ToString() + "')";
+                cmd = new SqlCommand(query, con);
+                cmd.ExecuteNonQuery();
+                con.Close();
+            }
+            red.Close();
+            con.Close();
+        }
+    }
+    private string GetIP()
+    {
+        string strHostName = "";
+        strHostName = System.Net.Dns.GetHostName();
+
+        IPHostEntry ipEntry = System.Net.Dns.GetHostEntry(strHostName);
+
+        IPAddress[] addr = ipEntry.AddressList;
+
+        return addr[addr.Length - 1].ToString();
+
+    }
+    public void data()
+    {
+        string connstring = WebConfigurationManager.ConnectionStrings["connect"].ConnectionString;
+        con = new SqlConnection(connstring);
+        con.Open();
+    }
+}
